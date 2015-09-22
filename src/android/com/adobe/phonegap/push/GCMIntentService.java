@@ -94,6 +94,7 @@ public class GCMIntentService extends GCMBaseIntentService implements PushConsta
             }
             else {
                 extras.putBoolean(FOREGROUND, false);
+                PushPlugin.setCachedExtras(extras);
 
                 // Send a notification if there is a message
                 String message = this.getMessageText(extras);

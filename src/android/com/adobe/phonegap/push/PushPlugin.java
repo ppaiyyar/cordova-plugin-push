@@ -18,6 +18,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Iterator;
+import java.util.ArrayList;
 
 public class PushPlugin extends CordovaPlugin implements PushConstants {
 
@@ -26,6 +27,7 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
     private static CallbackContext pushContext;
     private static CordovaWebView gWebView;
     private static Bundle gCachedExtras = null;
+    private static ArrayList<Bundle> gCachedExtrasList = new ArrayList();
     private static boolean gForeground = false;
 
     /**
@@ -139,15 +141,27 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
         }
     }
 
+    /**
+     * setCachedExtras
+     * @param extras
+     */
+    public static void setCachedExtras(Bundle extras) {
+        Log.d(LOG_TAG, "setCachedExtras: " + extras);
+        gCachedExtrasList.add(extras);
+    }
+
     @Override
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         super.initialize(cordova, webView);
+        Log.d(LOG_TAG, "PushPlugin initialize");
         gForeground = true;
+        pushCachedExtras();
     }
 
     @Override
     public void onPause(boolean multitasking) {
         super.onPause(multitasking);
+        Log.d(LOG_TAG, "PushPlugin paused");
         gForeground = false;
 
         SharedPreferences prefs = getApplicationContext().getSharedPreferences(COM_ADOBE_PHONEGAP_PUSH, Context.MODE_PRIVATE);
@@ -160,7 +174,9 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
     @Override
     public void onResume(boolean multitasking) {
         super.onResume(multitasking);
+        Log.d(LOG_TAG, "PushPlugin resume");
         gForeground = true;
+        pushCachedExtras();
     }
 
     @Override
@@ -168,6 +184,20 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
         super.onDestroy();
         gForeground = false;
         gWebView = null;
+    }
+
+    /**
+     * pushCachedExtras
+     */
+    private void pushCachedExtras() {
+        if (gCachedExtrasList.size() > 0) {
+            Log.v(LOG_TAG, "pushCachedExtras: " + gCachedExtrasList);
+            for(int i=0; i < gCachedExtrasList.size(); i++) {
+                Bundle extras = gCachedExtrasList.remove(i);
+                Log.v(LOG_TAG, "pushCachedExtras sending: " + extras);
+                sendExtras(extras);
+            }
+        }
     }
 
     /*
@@ -181,7 +211,7 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
             while (it.hasNext()) {
                 String key = it.next();
                 Object value = extras.get(key);
-                 
+
                 Log.d(LOG_TAG, "key = " + key);
                 if (key.startsWith(GCM_NOTIFICATION)) {
                     key = key.substring(GCM_NOTIFICATION.length()+1, key.length());
@@ -222,13 +252,13 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
                         }
                         else {
                             additionalData.put(key, value);
-                        }                       
+                        }
                     } catch (Exception e) {
                         additionalData.put(key, value);
                     }
                 }
             } // while
-            
+
             json.put(ADDITIONAL_DATA, additionalData);
             Log.v(LOG_TAG, "extrasToJSON: " + json.toString());
 
